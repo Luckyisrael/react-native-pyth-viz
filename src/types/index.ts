@@ -1,33 +1,15 @@
-// src/types/index.ts
-
-export type Asset = string;
+import { type PythAssetSymbol } from '../utils/pythAssests';
 
 export type ConnectionStatus = 'connected' | 'disconnected';
 
-export interface HistoricalDataPoint {
-  timestamp: number;
+export interface Price {
   price: number;
   confidence: number;
+  publishTime: number;
 }
 
-export interface PythUpdate {
-  asset: Asset;
-  price: number;
-  confidence: number;
-  timestamp: number;
-}
-
-export interface MarketData {
-  asset: Asset;
-  price: number;
-  change24h: number;
-  volume24h: number;
-}
-
-export interface AssetMetadata {
-  asset: Asset;
-  fullName: string;
-  description: string;
-  category: string;
-  lastUpdated: number;
+export interface PriceData {
+  symbol: PythAssetSymbol;
+  price: Price;
+  emaPrice: Price;
 }

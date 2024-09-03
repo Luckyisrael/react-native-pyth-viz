@@ -183,6 +183,9 @@
     "version": "0.41.0"
   },
   "dependencies": {
-    "@react-native-community/netinfo": "^11.3.2"
+    "@react-native-community/netinfo": "^11.3.2",
+    "expo-linear-gradient": "^13.0.2",
+    "react-native-gifted-charts": "^1.4.31",
+    "react-native-svg": "^15.6.0"
   }
 }

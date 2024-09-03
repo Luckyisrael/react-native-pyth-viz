@@ -1,162 +1,193 @@
-// src/modules/DataFeedModule.ts
+import { type PythAssetSymbol, getPythId } from '../utils/pythAssests'
+import { type PriceData, type ConnectionStatus } from '../types';
 
-import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
-import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
-import {type Asset, type HistoricalDataPoint, type PythUpdate, type ConnectionStatus, type MarketData, type AssetMetadata } from '../types';
-import { PYTH_API_ENDPOINT } from '../constants';
+const HERMES_API_ENDPOINT = 'https://hermes.pyth.network/v2';
+const CACHE_EXPIRY = 60 * 1000; // 1 minute
+
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+}
 
 export class DataFeedModule {
-  private subscriptions: Map<Asset, Set<(price: number) => void>>;
-  private connectionStatus: ConnectionStatus;
-  private pythListener: any;
-  private unsubscribeNetInfo: (() => void) | undefined;
-  private onConnectionStatusChange: ((status: ConnectionStatus) => void) | null;
+  private streamControllers: Map<PythAssetSymbol, AbortController> = new Map();
+  private connectionStatus: ConnectionStatus = 'disconnected';
+  private onConnectionStatusChange: ((status: ConnectionStatus) => void) | null = null;
+  private cache: Map<string, CacheItem<PriceData>> = new Map();
 
-  constructor() {
-    this.subscriptions = new Map();
-    this.connectionStatus = 'disconnected';
-    this.onConnectionStatusChange = null;
-    this.setupEventListeners();
-  }
-
-  private setupEventListeners(): void {
-    if (Platform.OS === 'ios') {
-      const pythEmitter = new NativeEventEmitter(NativeModules.PythModule);
-      this.pythListener = pythEmitter.addListener('PythUpdate', this.handlePythUpdate);
-    } else {
-      // Android Event listener
-      const PythModule = NativeModules.PythModule;
-      PythModule.startListening();
-      this.pythListener = DeviceEventEmitter.addListener('PythUpdate', this.handlePythUpdate);
-    }
-
-    this.unsubscribeNetInfo = NetInfo.addEventListener(this.handleConnectivityChange);
-  }
-
-  private handlePythUpdate = (update: PythUpdate): void => {
-    const { asset, price } = update;
-    const callbacks = this.subscriptions.get(asset);
-    if (callbacks) {
-      callbacks.forEach(callback => callback(price));
-    }
-  }
-
-  private handleConnectivityChange = (state: NetInfoState): void => {
-    this.connectionStatus = state.isConnected ? 'connected' : 'disconnected';
+  private setConnectionStatus(status: ConnectionStatus): void {
+    this.connectionStatus = status;
     if (this.onConnectionStatusChange) {
-      this.onConnectionStatusChange(this.connectionStatus);
+      this.onConnectionStatusChange(status);
     }
   }
 
-  public async getRealTimePrice(asset: Asset): Promise<number> {
-    try {
-      const response = await fetch(`${PYTH_API_ENDPOINT}/realtime/${asset}`);
-      if (!response.ok) throw new Error('Failed to fetch real-time price');
-      const data = await response.json();
-      return data.price;
-    } catch (error) {
-      console.error('Error fetching real-time price:', error);
-      throw error;
-    }
-  }
-
-  public async getHistoricalData(asset: Asset, startTime: Date, endTime: Date): Promise<HistoricalDataPoint[]> {
-    try {
-      const response = await fetch(`${PYTH_API_ENDPOINT}/historical/${asset}?start=${startTime.toISOString()}&end=${endTime.toISOString()}`);
-      if (!response.ok) throw new Error('Failed to fetch historical data');
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error fetching historical data:', error);
-      throw error;
-    }
-  }
-
-  public async getMarketOverview(): Promise<MarketData[]> {
-    try {
-      const response = await fetch(`${PYTH_API_ENDPOINT}/market-overview`);
-      if (!response.ok) throw new Error('Failed to fetch market overview');
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching market overview:', error);
-      throw error;
-    }
-  }
-
-  public async getAssetMetadata(asset: Asset): Promise<AssetMetadata> {
-    try {
-      const response = await fetch(`${PYTH_API_ENDPOINT}/asset-metadata/${asset}`);
-      if (!response.ok) throw new Error('Failed to fetch asset metadata');
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching asset metadata:', error);
-      throw error;
-    }
-  }
-
-  public async getVolatility(asset: Asset, period: '24h' | '7d' | '30d'): Promise<number> {
-    try {
-      const response = await fetch(`${PYTH_API_ENDPOINT}/volatility/${asset}?period=${period}`);
-      if (!response.ok) throw new Error('Failed to fetch volatility data');
-      const data = await response.json();
-      return data.volatility;
-    } catch (error) {
-      console.error('Error fetching volatility data:', error);
-      throw error;
-    }
-  }
-
-  public async getCorrelation(asset1: Asset, asset2: Asset, period: '24h' | '7d' | '30d'): Promise<number> {
-    try {
-      const response = await fetch(`${PYTH_API_ENDPOINT}/correlation?asset1=${asset1}&asset2=${asset2}&period=${period}`);
-      if (!response.ok) throw new Error('Failed to fetch correlation data');
-      const data = await response.json();
-      return data.correlation;
-    } catch (error) {
-      console.error('Error fetching correlation data:', error);
-      throw error;
-    }
-  }
-
-  public subscribeToLiveUpdates(asset: Asset, callback: (price: number) => void): { unsubscribe: () => void } {
-    if (!this.subscriptions.has(asset)) {
-      this.subscriptions.set(asset, new Set());
-    }
-    this.subscriptions.get(asset)!.add(callback);
-
-    // Start listening for updates (implementation depends on Pyth's API)
-    NativeModules.PythModule.subscribeToAsset(asset);
-
-    return {
-      unsubscribe: () => {
-        const callbacks = this.subscriptions.get(asset);
-        if (callbacks) {
-          callbacks.delete(callback);
-          if (callbacks.size === 0) {
-            this.subscriptions.delete(asset);
-            NativeModules.PythModule.unsubscribeFromAsset(asset);
-          }
-        }
-      }
-    };
-  }
-
-  public setConnectionStatusChangeListener(callback: (status: ConnectionStatus) => void): void {
-    this.onConnectionStatusChange = callback;
+  public setConnectionStatusChangeListener(listener: (status: ConnectionStatus) => void): void {
+    this.onConnectionStatusChange = listener;
   }
 
   public getConnectionStatus(): ConnectionStatus {
     return this.connectionStatus;
   }
 
+  private getCachedData(key: string): PriceData | null {
+    const cachedItem = this.cache.get(key);
+    if (cachedItem && Date.now() - cachedItem.timestamp < CACHE_EXPIRY) {
+      return cachedItem.data;
+    }
+    return null;
+  }
+
+  private setCachedData(key: string, data: PriceData): void {
+    this.cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  public async getLatestPriceUpdates(symbols: PythAssetSymbol[]): Promise<PriceData[]> {
+    const results: PriceData[] = [];
+    const symbolsToFetch: PythAssetSymbol[] = [];
+  
+    symbols.forEach(symbol => {
+      const cachedData = this.getCachedData(symbol);
+      if (cachedData) {
+        results.push(cachedData);
+      } else {
+        symbolsToFetch.push(symbol);
+      }
+    });
+  
+    if (symbolsToFetch.length > 0) {
+      try {
+        const ids = symbolsToFetch.map(getPythId);
+        const idsParam = ids.map(id => `ids[]=${encodeURIComponent(id)}`).join('&');
+        const url = `${HERMES_API_ENDPOINT}/updates/price/latest?${idsParam}`;
+        console.log('Fetching from URL:', url); // Log the URL being fetched
+  
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch latest price updates: ${response.status} ${response.statusText}. ${errorText}`);
+        }
+  
+        const data = await response.json();
+        data.parsed.forEach((item: any) => {
+          const symbol = symbolsToFetch[ids.indexOf(item.id)];
+          const priceData = this.parsePriceData(item, symbol);
+          results.push(priceData);
+          this.setCachedData(symbol, priceData);
+        });
+      } catch (error) {
+        console.error('Error fetching latest price updates:', error);
+        throw error;
+      }
+    }
+  
+    return results;
+  }
+
+  private parsePriceData(item: any, symbol: PythAssetSymbol): PriceData {
+    return {
+      symbol,
+      price: {
+        price: parseFloat(item.price.price) * Math.pow(10, item.price.expo),
+        confidence: parseFloat(item.price.conf) * Math.pow(10, item.price.expo),
+        publishTime: item.price.publish_time
+      },
+      emaPrice: {
+        price: parseFloat(item.ema_price.price) * Math.pow(10, item.ema_price.expo),
+        confidence: parseFloat(item.ema_price.conf) * Math.pow(10, item.ema_price.expo),
+        publishTime: item.ema_price.publish_time
+      }
+    };
+  }
+
+  public subscribeToLiveUpdates(symbol: PythAssetSymbol, callback: (priceData: PriceData) => void): { unsubscribe: () => void } {
+    const id = getPythId(symbol);
+    let intervalId: NodeJS.Timeout | null = null;
+  
+    const fetchAndProcessData = async () => {
+      try {
+        const url = `${HERMES_API_ENDPOINT}/updates/price/latest?ids[]=${encodeURIComponent(id)}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (data.parsed && data.parsed.length > 0) {
+          const priceData = this.parsePriceData(data.parsed[0], symbol);
+          this.setCachedData(symbol, priceData);
+          callback(priceData);
+        }
+      } catch (error) {
+        console.error('Error fetching price update:', error);
+      }
+    };
+  
+    // Try to use streaming if supported, otherwise fall back to polling
+    if (typeof ReadableStream !== 'undefined' && 'body' in Response.prototype) {
+      const streamUrl = `${HERMES_API_ENDPOINT}/updates/price/stream?ids[]=${encodeURIComponent(id)}`;
+      
+      fetch(streamUrl)
+        .then(response => {
+          if (!response.body) {
+            throw new Error('ReadableStream not supported');
+          }
+  
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+  
+          const processStream = async (): Promise<void> => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n').filter(line => line.trim() !== '');
+  
+                for (const line of lines) {
+                  const data = JSON.parse(line);
+                  if (data.parsed && data.parsed.length > 0) {
+                    const priceData = this.parsePriceData(data.parsed[0], symbol);
+                    this.setCachedData(symbol, priceData);
+                    callback(priceData);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Stream error:', error);
+              this.setConnectionStatus('disconnected');
+            }
+          };
+  
+          this.setConnectionStatus('connected');
+          processStream();
+        })
+        .catch(error => {
+          console.error('Fetch error:', error);
+          this.setConnectionStatus('disconnected');
+          // Fall back to polling if streaming fails
+          intervalId = setInterval(fetchAndProcessData, 5000); // Poll every 5 seconds
+        });
+    } else {
+      // Environment doesn't support ReadableStream, use polling
+      intervalId = setInterval(fetchAndProcessData, 5000); // Poll every 5 seconds
+    }
+  
+    return {
+      unsubscribe: () => {
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      }
+    };
+  }
+
   public cleanup(): void {
-    if (this.pythListener) {
-      this.pythListener.remove();
-    }
-    if (this.unsubscribeNetInfo) {
-      this.unsubscribeNetInfo();
-    }
-    // Clean up any other resources
+    this.streamControllers.forEach(controller => controller.abort());
+    this.streamControllers.clear();
   }
 }
 

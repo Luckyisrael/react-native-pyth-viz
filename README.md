@@ -1,29 +1,65 @@
-# react-native-pyth-viz
+# ReactNativePythViz
 
-ReactNativePythViz is a comprehensive Typescript library for React Native that integrates Pyth Network's real time financial market data with powerfull visualization tools. This linrary simplifies the integrate of live and historical market data into mobile applications while providing easy-to-use components for data visualization and advanced market analytics
+ReactNativePythViz is a powerful React Native library for integrating Pyth Network data feeds into your mobile applications. It provides real-time price updates, customizable alerts, and advanced visualization components for crypto asset prices.
+
+## Features
+
+- Real-time price updates from Pyth Network
+- Price alerts
+- Interactive Line and Candlestick charts
+- Utility functions for price calculations
+- TypeScript support
 
 ## Installation
 
-```sh
-npm install react-native-pyth-viz
-```
-or
-
-```sh
-yarn add react-native-pyth-viz
+```bash
+npm install react-native-pyth-viz react-native-gifted-charts react-native-linear-gradient
 ```
 
 ## Usage
 
+### Basic Usage
 
-```js
-import { multiply } from 'react-native-pyth-viz';
+```jsx
+import React from 'react';
+import { View, Text } from 'react-native';
+import { usePythDataFeed, PythAssetSymbol } from 'react-native-pyth-viz';
 
-// ...
+const BasicExample = () => {
+  const { realTimeData } = usePythDataFeed();
+  const asset: PythAssetSymbol = 'BTC/USD';
 
-const result = await multiply(3, 7);
+  return (
+    <View>
+      <Text>{asset} Price: ${realTimeData[asset]?.price.price.toFixed(2) || 'Loading...'}</Text>
+    </View>
+  );
+};
 ```
 
+### Advanced Usage
+
+See the `EnhancedUsageExample.tsx` file for a comprehensive example including price alerts and interactive charts.
+
+## API Reference
+
+### Hooks
+
+- `usePythDataFeed()`: Main hook for accessing Pyth Network data.
+
+### Components
+
+- `PriceAlert`: Component for setting price alerts.
+- `PriceChart`: Component for displaying interactive line charts.
+- `CandlestickChartComponent`: Component for displaying interactive candlestick charts.
+
+### Utility Functions
+
+- `calculatePercentageChange(oldPrice: number, newPrice: number): number`
+- `formatPrice(price: number, decimals: number = 2): string`
+- `getPercentageChangeColor(change: number): string`
+- `getLatestPrice(priceData: PriceData): number`
+- `getConfidenceInterval(priceData: PriceData): [number, number]`
 
 ## Contributing
 
