@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, SafeAreaView, ScrollView } from 'react-native';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { usePythDataFeed, type PythAssetSymbol } from 'react-native-pyth-viz';
+import { PriceChart, usePythDataFeed, type PythAssetSymbol } from 'react-native-pyth-viz';
 import LatestPriceExample from './component/LatestPriceExample';
 import ConnectionStatusExample from './component/ConnectedExample';
 import RealTimeDataExample from './component/RealTimeData';
@@ -12,6 +12,7 @@ const ASSETS: PythAssetSymbol[] = ['BTC/USD', 'ETH/USD', ];
 
 export default function App() {
   const { connectionStatus, realTimeData, getLatestPriceUpdates, subscribeToLiveUpdates } = usePythDataFeed();
+  const asset: PythAssetSymbol = 'BTC/USD';
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -30,7 +31,6 @@ export default function App() {
       subscriptions.forEach(sub => sub.unsubscribe());
     };
   }, [getLatestPriceUpdates, subscribeToLiveUpdates]);
-
 
   return (
     <GestureHandlerRootView>
@@ -69,6 +69,9 @@ export default function App() {
       <View>
         <Text>All Prices</Text>
         <ComprehensiveExample />
+      </View>
+      <View>
+        <PriceChart asset={asset} timeWindow={3600000}  />
       </View>
     </View>
       </ScrollView>

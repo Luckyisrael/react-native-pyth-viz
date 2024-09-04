@@ -125,7 +125,7 @@ export class DataFeedModule {
       }
     };
   
-    // Try to use streaming if supported, otherwise fall back to polling
+    // Trying to use streaming if supported, otherwise fall back to polling
     if (typeof ReadableStream !== 'undefined' && 'body' in Response.prototype) {
       const streamUrl = `${HERMES_API_ENDPOINT}/updates/price/stream?ids[]=${encodeURIComponent(id)}`;
       

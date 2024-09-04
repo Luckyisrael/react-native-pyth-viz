@@ -2,13 +2,14 @@
 
 ReactNativePythViz is a powerful React Native library for integrating Pyth Network data feeds into your mobile applications. It provides real-time price updates, customizable alerts, and advanced visualization components for crypto asset prices.
 
-## Features
 
-- Real-time price updates from Pyth Network
-- Price alerts
-- Interactive Line and Candlestick charts
-- Utility functions for price calculations
-- TypeScript support
+## Current Features
+
+- ✅ Real-time price updates from Pyth Network
+- ✅ Support for multiple assets
+- ✅ Customizable line chart component
+- ✅ Easy-to-use React hooks for data fetching and management
+- ✅ TypeScript support for improved developer experience
 
 ## Installation
 
@@ -16,50 +17,97 @@ ReactNativePythViz is a powerful React Native library for integrating Pyth Netwo
 npm install react-native-pyth-viz react-native-gifted-charts react-native-linear-gradient
 ```
 
-## Usage
+or if you're using yarn:
 
-### Basic Usage
+```bash
+yarn add react-native-pyth-viz react-native-gifted-charts react-native-linear-gradient
+```
 
-```jsx
+## Quick Start
+
+Here's a basic example of how to use ReactNativePythViz in your React Native application:
+
+```tsx
 import React from 'react';
-import { View, Text } from 'react-native';
-import { usePythDataFeed, PythAssetSymbol } from 'react-native-pyth-viz';
+import { View, Text, StyleSheet } from 'react-native';
+import { PriceChart, usePythDataFeed, PythAssetSymbol } from 'react-native-pyth-viz';
 
-const BasicExample = () => {
-  const { realTimeData } = usePythDataFeed();
-  const asset: PythAssetSymbol = 'BTC/USD';
+const ChartExample: React.FC = () => {
+  const { connectionStatus } = usePythDataFeed();
+  const assets: PythAssetSymbol[] = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
+  const timeWindow = 3600000; // 1 hour
 
   return (
-    <View>
-      <Text>{asset} Price: ${realTimeData[asset]?.price.price.toFixed(2) || 'Loading...'}</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Multi-Asset Price Chart</Text>
+      <Text>Connection Status: {connectionStatus}</Text>
+      <PriceChart assets={assets} timeWindow={timeWindow} />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+});
+
+export default ChartExample;
 ```
 
-### Advanced Usage
+## Main Components
 
-See the `EnhancedUsageExample.tsx` file for a comprehensive example including price alerts and interactive charts.
+### PriceChart
+
+The `PriceChart` component displays a line chart for one or more assets.
+
+Props:
+- `assets`: An array of `PythAssetSymbol` to display on the chart.
+- `timeWindow`: The time window for displayed data in milliseconds.
+
+### usePythDataFeed Hook
+
+The `usePythDataFeed` hook provides access to real-time price data and connection status.
+
+Returns:
+- `connectionStatus`: Current connection status to Pyth Network.
+- `realTimeData`: Object containing the latest price data for subscribed assets.
+- `getLatestPriceUpdates`: Function to fetch the latest price updates for given assets.
+- `subscribeToLiveUpdates`: Function to subscribe to real-time updates for a specific asset.
+
+## Supported Assets
+
+Currently, the library supports the following assets:
+- BTC/USD
+- ETH/USD
+- SOL/USD
+- (Add more as they become available)
 
 ## API Reference
 
-### Hooks
+(Detailed API reference to be added as the library evolves)
 
-- `usePythDataFeed()`: Main hook for accessing Pyth Network data.
+## Acknowledgments
 
-### Components
+- Pyth Network for providing the price feed data
+- react-native-gifted-charts for the charting capabilities
 
-- `PriceAlert`: Component for setting price alerts.
-- `PriceChart`: Component for displaying interactive line charts.
-- `CandlestickChartComponent`: Component for displaying interactive candlestick charts.
+## Roadmap
 
-### Utility Functions
+- [ ] Add more chart types (candlestick, bar charts)
+- [ ] Implement caching for improved performance
+- [ ] Add more customization options for charts
+- [ ] Develop comprehensive error handling
+- [ ] Create a demo app showcasing all features
 
-- `calculatePercentageChange(oldPrice: number, newPrice: number): number`
-- `formatPrice(price: number, decimals: number = 2): string`
-- `getPercentageChangeColor(change: number): string`
-- `getLatestPrice(priceData: PriceData): number`
-- `getConfidenceInterval(priceData: PriceData): [number, number]`
+Stay tuned for updates and new features!
+
 
 ## Contributing
 
