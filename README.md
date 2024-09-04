@@ -87,7 +87,7 @@ Currently, the library supports the following assets:
 - BTC/USD
 - ETH/USD
 - SOL/USD
-- (Add more as they become available)
+- ( more will become available)
 
 ## API Reference
 
